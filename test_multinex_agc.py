@@ -12,7 +12,7 @@ from basicsr.models.archs.agc_utils import compute_adaptive_gamma_luma, Adaptive
 
 
 def test_agc_prior():
-    print("=== 1. Testing GPU/CPU Adaptive Gamma Prior (Strategy 1) ===")
+    print("=== 1. Testing GPU/CPU Adaptive Gamma Prior (Formula 23) ===")
     x = torch.rand(2, 3, 128, 128)
     y_agc = compute_adaptive_gamma_luma(x)
     assert y_agc.shape == (2, 1, 128, 128), f"Unexpected shape: {y_agc.shape}"
@@ -20,11 +20,11 @@ def test_agc_prior():
     assert not torch.isinf(y_agc).any(), "Inf detected in Y_agc"
     print(f"  Input: {x.shape} (min={x.min():.4f}, max={x.max():.4f})")
     print(f"  Y_agc: {y_agc.shape} (min={y_agc.min():.4f}, max={y_agc.max():.4f})")
-    print("  ✓ Strategy 1 AGC prior test PASSED!")
+    print("  ✓ Adaptive Gamma Prior test PASSED!\n")
 
 
-def test_multinex_agc_forward_and_backward():
-    print("\n=== 2. Testing Multinex with AGC (Strategy 1 + Strategy 3) ===")
+def run_single_config(name, agc_flag, gamma_head_flag):
+    print(f"=== Testing: {name} (agc_prior={agc_flag}, gamma_head={gamma_head_flag}) ===")
     illum_flags = dict(
         mean=False,
         rec709=True,
@@ -32,7 +32,7 @@ def test_multinex_agc_forward_and_backward():
         lightness=True,
         ycgco=False,
         l2norm=True,
-        agc=True  # Strategy 1
+        agc=agc_flag
     )
     chroma_flags = dict(
         yuv_uv=False,
@@ -54,38 +54,47 @@ def test_multinex_agc_forward_and_backward():
         chroma_mid=3,
         illum_flags=illum_flags,
         chroma_flags=chroma_flags,
-        use_adaptive_gamma_head=True,  # Strategy 3
+        use_adaptive_gamma_head=gamma_head_flag,
         target_params=45000
     )
 
     params = model.param_count()
-    print(f"  Total Trainable Parameters: {params:,} ({params/1e3:.2f}K)")
+    print(f"  Trainable Parameters: {params:,} ({params/1e3:.2f}K)")
     assert params < 50000, f"Parameter budget exceeded: {params}"
 
-    # Forward pass with dummy low-light image batch
+    # Forward pass
     x = torch.rand(2, 3, 128, 128, requires_grad=True)
     out = model(x)
     assert out.shape == (2, 3, 128, 128), f"Unexpected output shape: {out.shape}"
     assert not torch.isnan(out).any(), "NaN detected in output"
-    print(f"  Forward pass successful: output shape = {out.shape}")
 
-    # Backward pass & gradient flow check
+    # Backward pass & gradient check
     target = torch.rand(2, 3, 128, 128)
     loss = nn.MSELoss()(out, target)
     loss.backward()
 
-    # Verify gradients
-    for name, param in model.named_parameters():
+    for p_name, param in model.named_parameters():
         if param.requires_grad:
-            assert param.grad is not None, f"Gradient missing for {name}"
-            assert not torch.isnan(param.grad).any(), f"NaN gradient in {name}"
-    print(f"  Backward pass successful: loss = {loss.item():.5f}, all gradients healthy!")
-    print("  ✓ Multinex-AGC Strategy 1 + Strategy 3 test PASSED!")
+            assert param.grad is not None, f"Gradient missing for {p_name}"
+            assert not torch.isnan(param.grad).any(), f"NaN gradient in {p_name}"
+
+    print(f"  Loss: {loss.item():.5f} | All gradients healthy | Output range: [{out.min():.3f}, {out.max():.3f}]")
+    print(f"  ✓ {name} test PASSED!\n")
+
+
+def main():
+    test_agc_prior()
+    # 1. Strategy 1 Alone: Prior Guidance
+    run_single_config("Strategy 1 (Prior Only)", agc_flag=True, gamma_head_flag=False)
+    # 2. Strategy 3 Alone: Learnable Gamma Head
+    run_single_config("Strategy 3 (Gamma Head Only)", agc_flag=False, gamma_head_flag=True)
+    # 3. Strategy 1 + 3 Combined: Full AGC-Multinex
+    run_single_config("Combined (Strategy 1 + Strategy 3)", agc_flag=True, gamma_head_flag=True)
+
+    print("==================================================================")
+    print("ALL ABLATION CONFIGURATIONS PASSED! Multinex-AGC is verified.")
+    print("==================================================================")
 
 
 if __name__ == "__main__":
-    test_agc_prior()
-    test_multinex_agc_forward_and_backward()
-    print("\n========================================================")
-    print("ALL TESTS PASSED! Multinex-AGC is verified and ready.")
-    print("========================================================")
+    main()
