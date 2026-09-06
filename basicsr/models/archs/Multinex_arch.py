@@ -570,7 +570,7 @@ class Multinex(nn.Module):
         if getattr(self, 'use_adaptive_gamma_head', False) and self.adaptive_gamma_head is not None:
             w_rec709 = x.new_tensor([0.2126, 0.7152, 0.0722]).view(1, 3, 1, 1)
             Y_base = (x * w_rec709).sum(dim=1, keepdim=True).clamp(0.0, 1.0)
-            L_hat = self.adaptive_gamma_head(fL, Y_base)
+            L_hat = self.adaptive_gamma_head(fL, Y_base, self.head_luma)
         else:
             L_hat = self.head_luma(fL)                                # (B,1,H,W)
             L_hat = self._apply_head_act(L_hat, self.luma_head_act)

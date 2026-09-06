@@ -73,27 +73,24 @@ class AdaptiveGammaHead(nn.Module):
     Learnable Adaptive Gamma Illumination Head (Strategy 3).
     Formulates illumination adjustment via non-linear adaptive tone mapping:
       gamma(x, y) = clamp(0.5 * exp(tanh(W_gamma * f_L)), 0.1, 1.8)
-      Delta_L = ( (Y_base + eps)^gamma - Y_base ) * (1.0 + tanh(W_res * f_L))
+      Delta_L = ( (Y_base + eps)^gamma - Y_base ) * (1.0 + tanh(head_luma(f_L)))
     """
     def __init__(self, in_channels: int, eps: float = 1e-6):
         super().__init__()
         self.eps = eps
         # Predicts spatial gamma modulation
         self.gamma_conv = nn.Conv2d(in_channels, 1, kernel_size=1, bias=True)
-        # Predicts residual detail modulation
-        self.res_conv = nn.Conv2d(in_channels, 1, kernel_size=1, bias=True)
 
         # Zero-initialize the modulation weights so training starts smoothly from base gamma
         nn.init.zeros_(self.gamma_conv.weight)
         nn.init.zeros_(self.gamma_conv.bias)
-        nn.init.zeros_(self.res_conv.weight)
-        nn.init.zeros_(self.res_conv.bias)
 
-    def forward(self, f_L: torch.Tensor, Y_base: torch.Tensor) -> torch.Tensor:
+    def forward(self, f_L: torch.Tensor, Y_base: torch.Tensor, head_luma: nn.Module) -> torch.Tensor:
         """
         Args:
             f_L: Feature tensor from illumination mid-sequence (B, C, H, W)
             Y_base: Base luminance map (B, 1, H, W) from input image (e.g. Rec.709)
+            head_luma: The linear luma head module (B, C, H, W) -> (B, 1, H, W)
         Returns:
             L_hat: Illumination adjustment tensor Delta_L (B, 1, H, W)
         """
@@ -105,8 +102,8 @@ class AdaptiveGammaHead(nn.Module):
         gamma_expanded = torch.pow(Y_base.clamp_min(self.eps), gamma)
         delta_gamma = gamma_expanded - Y_base
 
-        # Neural refinement scale: (1.0 + tanh(res_conv)) allows amplifying or dampening the delta
-        res_scale = 1.0 + torch.tanh(self.res_conv(f_L))
+        # Neural refinement scale using head_luma (guarantees gradient flow to all parameters)
+        res_scale = 1.0 + torch.tanh(head_luma(f_L))
 
         L_hat = delta_gamma * res_scale
         return L_hat
