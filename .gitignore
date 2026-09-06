@@ -1,8 +1,8 @@
 multinex_pkg
 
 # ignored folders
-data
-Detection/data
+/data/
+/Detection/data/
 Detection/weights
 experiments
 Detection/work_dirs
