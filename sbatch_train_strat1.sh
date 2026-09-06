@@ -12,6 +12,7 @@ echo "=== Training Multinex Strategy 1 (Prior Only) on $(hostname) at $(date) ==
 nvidia-smi
 
 cd $SLURM_SUBMIT_DIR
+export PYTHONPATH=$SLURM_SUBMIT_DIR:$PYTHONPATH
 
 PYTHON_BIN="/mnt/weka/ghakobyan/.conda/envs/lightendiff/bin/python"
 if [ ! -f "$PYTHON_BIN" ]; then

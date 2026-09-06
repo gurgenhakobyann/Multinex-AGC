@@ -3,12 +3,14 @@
 # Commercial use requires prior written permission.
 # See LICENSE for details.
 
+import sys
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 import argparse
 import datetime
 import logging
 import math
-import os
-
 import random
 import time
 import torch
