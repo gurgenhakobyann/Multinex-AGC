@@ -19,6 +19,6 @@ if [ ! -f "$PYTHON_BIN" ]; then
     PYTHON_BIN="python"
 fi
 
-$PYTHON_BIN basicsr/train.py -opt Options/Multinex_Strategy1_Prior_LOL-v1.yaml
+$PYTHON_BIN basicsr/train.py --opt Options/Multinex_Strategy1_Prior_LOL-v1.yaml
 
 echo "=== Finished at $(date) ==="

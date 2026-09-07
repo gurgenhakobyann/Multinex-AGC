@@ -14,7 +14,6 @@ nvidia-smi
 
 cd $SLURM_SUBMIT_DIR
 
-# Run Multinex-AGC Training on LOL-v1
-python basicsr/train.py -opt Options/Multinex_AGC_LOL-v1.yaml
+$PYTHON_BIN basicsr/train.py --opt Options/Multinex_AGC_LOL-v1.yaml
 
 echo "=== Job finished at $(date) ==="
