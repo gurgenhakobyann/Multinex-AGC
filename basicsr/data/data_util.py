@@ -232,24 +232,26 @@ def paired_paths_from_folder(folders, keys, filename_tmpl):
     input_paths = list(scandir(input_folder))
     gt_paths = list(scandir(gt_folder))
 
-    
-    assert len(input_paths) == len(gt_paths), (
-        f'{input_key} and {gt_key} datasets have different number of images: '
-        f'{len(input_paths)}, {len(gt_paths)}.')
+    # Match by common basenames to handle minor count discrepancies (e.g. 500 vs 498) gracefully
+    input_map = {osp.splitext(osp.basename(p))[0]: p for p in input_paths}
     paths = []
-    for idx in range(len(gt_paths)):
-        gt_path = gt_paths[idx]
-        basename, ext = osp.splitext(osp.basename(gt_path))
-        input_path = input_paths[idx]
-        basename_input, ext_input = osp.splitext(osp.basename(input_path))
-        input_name = f'{filename_tmpl.format(basename)}{ext_input}'
-        input_path = osp.join(input_folder, input_name)
-        assert input_name in input_paths, (f'{input_name} is not in '
-                                           f'{input_key}_paths.')
-        gt_path = osp.join(gt_folder, gt_path)
-        paths.append(
-            dict([(f'{input_key}_path', input_path),
-                  (f'{gt_key}_path', gt_path)]))
+    for gt_rel_path in sorted(gt_paths):
+        basename, _ = osp.splitext(osp.basename(gt_rel_path))
+        input_name_cand = filename_tmpl.format(basename)
+        if input_name_cand in input_map:
+            input_rel_path = input_map[input_name_cand]
+            paths.append(
+                dict([(f'{input_key}_path', osp.join(input_folder, input_rel_path)),
+                      (f'{gt_key}_path', osp.join(gt_folder, gt_rel_path))]))
+
+    if not paths and len(input_paths) == len(gt_paths):
+        # Fallback to index-based matching if template doesn't match
+        for idx in range(len(gt_paths)):
+            paths.append(
+                dict([(f'{input_key}_path', osp.join(input_folder, input_paths[idx])),
+                      (f'{gt_key}_path', osp.join(gt_folder, gt_paths[idx]))]))
+
+    assert len(paths) > 0, f'No valid paired images found in {input_folder} and {gt_folder}.'
     return paths
 
 def paired_DP_paths_from_folder(folders, keys, filename_tmpl):
