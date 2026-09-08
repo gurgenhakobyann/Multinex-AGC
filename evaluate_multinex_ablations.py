@@ -15,7 +15,8 @@ base_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, base_dir)
 sys.path.insert(0, os.path.join(base_dir, 'basicsr'))
 
-from basicsr.models.archs.Multinex_arch import Multinex
+from copy import deepcopy
+from basicsr.models.archs import define_network
 
 # LOE implementation
 def compute_loe(gt, pred):
@@ -39,23 +40,8 @@ def evaluate_model(config_path, weights_path, input_dir, gt_dir, device='cuda'):
     with open(config_path, 'r', encoding='utf-8') as f:
         cfg = yaml.safe_load(f)
 
-    net_cfg = cfg['network_g']
-    # Instantiate Multinex
-    model = Multinex(
-        in_ch=net_cfg.get('in_ch', 3),
-        out_ch=net_cfg.get('out_ch', 3),
-        base_channels=net_cfg.get('base_channels', 40),
-        width_mult=net_cfg.get('width_mult', 2.0),
-        use_depthwise=net_cfg.get('use_depthwise', True),
-        use_illum_attn=net_cfg.get('use_illum_attn', True),
-        use_chroma_attn=net_cfg.get('use_chroma_attn', True),
-        illum_mid=net_cfg.get('illum_mid', 3),
-        chroma_mid=net_cfg.get('chroma_mid', 3),
-        illum_flags=net_cfg.get('illum_flags', {}),
-        chroma_flags=net_cfg.get('chroma_flags', {}),
-        use_adaptive_gamma_head=net_cfg.get('use_adaptive_gamma_head', False),
-        target_params=net_cfg.get('target_params', 45000)
-    )
+    # Instantiate Multinex exactly as in training
+    model = define_network(deepcopy(cfg['network_g']))
 
     ckpt = torch.load(weights_path, map_location=device, weights_only=False)
     state = ckpt.get('params', ckpt.get('params_ema', ckpt))
