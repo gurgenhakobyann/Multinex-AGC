@@ -123,15 +123,15 @@ def main():
     models_to_eval = [
         ('Strategy 1 (AGC Prior Only)',
          'Options/Multinex_Strategy1_Prior_LOL-v1.yaml',
-         'Multinex_Strategy1_Prior_LOL_v1'),
+         'Multinex_Strategy1_Prior_LOL-v1'),
 
         ('Strategy 3 (Learnable Head Only)',
          'Options/Multinex_Strategy3_Head_LOL-v1.yaml',
-         'Multinex_Strategy3_Head_LOL_v1'),
+         'Multinex_Strategy3_Head_LOL-v1'),
 
         ('Combined (Strategy 1 + Strategy 3)',
          'Options/Multinex_Strategy1_3_Combined_LOL-v1.yaml',
-         'Multinex_Strategy1_3_Combined_LOL_v1'),
+         'Multinex_Strategy1_3_Combined_LOL-v1'),
     ]
 
     print("\n" + "=" * 70)
@@ -142,6 +142,11 @@ def main():
 
     for name, opt_p, exp_name in models_to_eval:
         exp_folder = os.path.join(args.exp_dir, exp_name)
+        if not os.path.isdir(exp_folder):
+            exp_folder = os.path.join(args.exp_dir, exp_name.replace('-v1', '_v1'))
+        if not os.path.isdir(exp_folder):
+            exp_folder = os.path.join(args.exp_dir, exp_name.replace('_v1', '-v1'))
+
         # Search candidate checkpoint files: best_psnr_*, models/net_g_best, models/net_g_latest, models/net_g_*
         candidates = (
             glob.glob(os.path.join(exp_folder, 'best_psnr_*.pth')) +
