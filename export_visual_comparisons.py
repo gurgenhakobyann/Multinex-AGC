@@ -61,6 +61,16 @@ def export_images():
             out = model1(x).squeeze(0).permute(1, 2, 0).cpu().clamp(0.0, 1.0).numpy()
             Image.fromarray((out * 255.0).astype(np.uint8)).save(os.path.join(out_dir, f"strat1_{f}"))
 
+            # Also generate color-corrected Multinex (Guided Chroma alpha=0.30)
+            sum_low = np.sum(in_np, axis=2, keepdims=True) + 1e-6
+            chroma_low = in_np / sum_low
+            sum_out = np.sum(out, axis=2, keepdims=True) + 1e-6
+            chroma_out = out / sum_out
+            chroma_blended = 0.70 * chroma_out + 0.30 * chroma_low
+            Y_out = 0.299 * out[..., 0:1] + 0.587 * out[..., 1:2] + 0.114 * out[..., 2:3]
+            corr = np.clip(Y_out * (chroma_blended / (np.mean(chroma_blended, axis=2, keepdims=True) + 1e-6)), 0.0, 1.0)
+            Image.fromarray((corr * 255.0).astype(np.uint8)).save(os.path.join(out_dir, f"multinex_guided_{f}"))
+
     # 2. Evaluate Baseline Multinex (24.10 dB)
     base_ckpt = os.path.join(base_dir, "pretrained_weights", "Multinex_LOL-v1.pth")
     if os.path.isfile(base_ckpt):
