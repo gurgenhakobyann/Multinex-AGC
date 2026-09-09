@@ -68,6 +68,9 @@ def export_images():
         if os.path.isfile(cfg_base_path):
             with open(cfg_base_path) as fp:
                 cfg_b = yaml.safe_load(fp)
+            # Baseline Multinex does not have agc in illum_flags (4 channels)
+            if "illum_flags" in cfg_b["network_g"]:
+                cfg_b["network_g"]["illum_flags"]["agc"] = False
             model_b = define_network(deepcopy(cfg_b["network_g"]))
             ckpt_b = torch.load(base_ckpt, map_location=device, weights_only=False)
             model_b.load_state_dict({k.replace("module.", ""): v for k, v in ckpt_b.get("params", ckpt_b).items()})
